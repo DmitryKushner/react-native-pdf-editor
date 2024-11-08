@@ -19,6 +19,7 @@ class NonSelectablePDFView: PDFView {
     let sliderBackgroundView = UIView()
     let slider = UISlider()
     let editView = UIView(frame: CGRect(x: 0, y: 0, width: 70, height: 70))
+    let editImageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
     private var lineWidth: CGFloat = 10
     private var panEditAvailable = false
     private var isEditMode = false
@@ -35,13 +36,25 @@ class NonSelectablePDFView: PDFView {
         self.pan = pan
         self.addGestureRecognizer(pan)
       
-        self.minScaleFactor = 0.8
+        NotificationCenter.default.addObserver(
+          self,
+          selector: #selector(documentDidLoad),
+          name: .PDFViewVisiblePagesChanged,
+          object: self
+        )
         self.addSubviews()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+  
+  @objc func documentDidLoad() {
+    if let document = document, let page = document.page(at: 0) {
+    let pageBounds = page.bounds(for: displayBox)
+      scaleFactor = (bounds.width - 2) / pageBounds.width
+    }
+  }
   
   override func layoutSubviews() {
     super.layoutSubviews()
@@ -54,12 +67,16 @@ class NonSelectablePDFView: PDFView {
     )
   }
   
-    private func addSubviews() {
-      sliderBackgroundView.backgroundColor = .red
+  private func addSubviews() {
+      sliderBackgroundView.backgroundColor = .white
       sliderBackgroundView.frame = CGRect(x: 0, y: 0, width: 120, height: 40)
       sliderBackgroundView.layer.cornerRadius = 20
       addSubview(sliderBackgroundView)
       sliderBackgroundView.isHidden = !isEditMode
+      sliderBackgroundView.layer.shadowColor = UIColor.black.cgColor
+      sliderBackgroundView.layer.shadowOpacity = 1
+      sliderBackgroundView.layer.shadowOffset = CGSize.zero
+      sliderBackgroundView.layer.shadowRadius = 5
       
       slider.frame = CGRect(x: 0, y: 0, width: 100, height: 30)
       slider.center = sliderBackgroundView.center
@@ -77,13 +94,21 @@ class NonSelectablePDFView: PDFView {
       sliderBackgroundView.addSubview(slider)
       sliderBackgroundView.transform = CGAffineTransform(rotationAngle: -CGFloat.pi / 2)
       
-      editView.backgroundColor = .lightGray
+      editView.backgroundColor = .white
       editView.layer.cornerRadius = 35
+      editView.layer.shadowColor = UIColor.black.cgColor
+      editView.layer.shadowOpacity = 1
+      editView.layer.shadowOffset = CGSize.zero
+      editView.layer.shadowRadius = 5
       addSubview(editView)
       let editTap = UITapGestureRecognizer(target: self, action: #selector(changEditMode))
       editView.addGestureRecognizer(editTap)
-      
-      print(self.frame)
+    
+      editView.addSubview(editImageView)
+      editImageView.center = editView.center
+      if #available(iOS 13.0, *) {
+        editImageView.image = UIImage(systemName: "pencil.tip")?.withRenderingMode(.alwaysOriginal).withTintColor(.black)
+      }
     }
   
     @objc func sliderValueChanged(_ sender: UISlider) {
@@ -94,7 +119,6 @@ class NonSelectablePDFView: PDFView {
         sender.value = roundedValue
         
         lineWidth = CGFloat(roundedValue)
-        print("Slider value: \(roundedValue)")
     }
   
   @objc func sliderStartEditing(_ sender: UISlider) {
@@ -107,7 +131,7 @@ class NonSelectablePDFView: PDFView {
   
   @objc func changEditMode() {
     isEditMode.toggle()
-    panEditAvailable.toggle()
+    panEditAvailable = isEditMode
     sliderBackgroundView.isHidden = !isEditMode
   }
 
